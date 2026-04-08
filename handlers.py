@@ -7,6 +7,7 @@ from database import (
     get_messages, reset_session
 )
 from ai import analyze
+import scheduler as sched
 
 router = Router()
 
@@ -35,6 +36,7 @@ async def cmd_start(msg: Message):
 
     username = msg.from_user.username or msg.from_user.full_name
     await create_session(msg.chat.id, question, username)
+    sched.notified.discard(msg.chat.id)
 
     await msg.answer(
         f"{PRIVACY_NOTICE}"
@@ -75,10 +77,15 @@ async def cmd_conclude(msg: Message):
     result = await analyze(session["question"], messages, mode="conclude")
     await msg.answer(result, parse_mode="Markdown")
 
+    # Закрываем сессию — таймаут больше не сработает
+    await reset_session(msg.chat.id)
+    sched.notified.discard(msg.chat.id)
+
 
 @router.message(Command("reset"))
 async def cmd_reset(msg: Message):
     await reset_session(msg.chat.id)
+    sched.notified.discard(msg.chat.id)
     await msg.answer(
         "🗑 Обсуждение очищено. Начни новое с /start Твой вопрос"
     )
@@ -107,7 +114,7 @@ async def cmd_status(msg: Message):
 async def collect_message(msg: Message):
     session = await get_session(msg.chat.id)
     if not session:
-        return  # нет активной сессии — игнорируем
+        return
 
     username = msg.from_user.username or msg.from_user.full_name
     await save_message(msg.chat.id, username, msg.text)
