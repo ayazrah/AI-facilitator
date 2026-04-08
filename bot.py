@@ -25,7 +25,7 @@ async def main():
     start_scheduler(bot)
 
     logger.info("Bot started")
-    await dp.start_polling(bot, allowed_updates=["message"])
+    await dp.start_polling(bot, allowed_updates=["message", "voice"])
 
 
 if __name__ == "__main__":
