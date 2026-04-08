@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 # Храним чаты которым уже отправили таймаут-анализ
 # чтобы не спамить при каждой проверке
-_notified: set[int] = set()
+notified: set[int] = set()
 
 
 async def check_timeouts(bot: Bot):
@@ -20,7 +20,7 @@ async def check_timeouts(bot: Bot):
     stale = await get_stale_sessions(TIMEOUT_MINUTES)
     for session in stale:
         chat_id = session["chat_id"]
-        if chat_id in _notified:
+        if chat_id in notified:
             continue
 
         messages = await get_messages(chat_id)
@@ -30,7 +30,7 @@ async def check_timeouts(bot: Bot):
         try:
             result = await analyze(session["question"], messages, mode="timeout")
             await bot.send_message(chat_id, result, parse_mode="Markdown")
-            _notified.add(chat_id)
+            notified.add(chat_id)
             logger.info(f"Timeout analysis sent to chat {chat_id}")
         except Exception as e:
             logger.error(f"Failed to send timeout analysis to {chat_id}: {e}")
@@ -45,7 +45,7 @@ def start_scheduler(bot: Bot):
     scheduler.add_job(
         check_timeouts,
         trigger="interval",
-        minutes=5,  # проверяем каждые 5 минут
+        minutes=5,
         args=[bot]
     )
     scheduler.start()
